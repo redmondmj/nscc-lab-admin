@@ -1,0 +1,35 @@
+# ---------------------------------------------------------------------
+# Secrets - never commit
+# ---------------------------------------------------------------------
+.vault_pass.txt
+*.vault_pass
+ansible/inventory/group_vars/windows_lab/vault.yml
+ansible/inventory/group_vars/windows_lab/vault.yml.decrypted
+bootstrap/*.local.ps1
+ansible/files/*.ppkg
+
+# ---------------------------------------------------------------------
+# Site-specific data - never commit (this repo is public)
+#
+# These carry device serial numbers (the hostname suffixes are Dell
+# service tags), MAC addresses, and internal network topology. Redacted
+# .example templates are committed in their place; the real files live
+# locally and on the Ansible control node only.
+# ---------------------------------------------------------------------
+docs/lab312-port-map.md
+ansible/inventory/hosts.yml
+docs/network-modernization-status.md
+*-hash.csv
+serials.csv
+liberated-machines.csv
+
+# ---------------------------------------------------------------------
+# OS/editor noise
+# ---------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+
+# Stray logs written into the working dir by local MCP servers
+proxmox_mcp.log
+*.log

@@ -1,0 +1,64 @@
+---
+# One-time push of the nscctruro.ca bulk-enrollment provisioning package to
+# every already-onboarded machine in windows_lab. Run this AFTER a machine
+# has been through the physical bootstrap (Run-Full-Migration.ps1) and is
+# already reachable over Ansible - this handles the Entra ID join/Intune
+# enrollment step separately, at scale, from the control node rather than
+# adding another step to the per-machine USB visit.
+#
+# Idempotent - safe to re-run against the whole fleet as new machines get
+# added to inventory; already-joined machines are skipped.
+#
+# The bulk token embedded in the .ppkg expires ~30 days after it was
+# generated in Windows Configuration Designer. If you're still onboarding
+# machines after that, regenerate the package (same WCD project) and
+# re-copy it to ansible/files/Bulk-Enrollment.ppkg before re-running this.
+#
+#   ansible-playbook playbooks/entra-join.yml --vault-password-file ~/.ansible_vault_pass
+#
+- name: Push nscctruro.ca Entra ID bulk enrollment to Lab 312 fleet
+  hosts: windows_lab
+  gather_facts: false
+  vars:
+    ppkg_local_path: "{{ playbook_dir }}/../files/Bulk-Enrollment.ppkg"
+    ppkg_remote_path: 'C:\Windows\Temp\Bulk-Enrollment.ppkg'
+
+  tasks:
+    - name: Check whether this package is already installed
+      ansible.windows.win_shell: |
+        [bool](Get-ProvisioningPackage | Where-Object { $_.PackageName -like '*Bulk Enrollment*' })
+      register: already_installed
+      changed_when: false
+
+    - name: Copy provisioning package to the machine
+      ansible.windows.win_copy:
+        src: "{{ ppkg_local_path }}"
+        dest: "{{ ppkg_remote_path }}"
+      when: not (already_installed.stdout | trim | bool)
+
+    - name: Install the provisioning package (Entra ID join + Intune enrollment)
+      ansible.windows.win_shell: |
+        Install-ProvisioningPackage -PackagePath "{{ ppkg_remote_path }}" -QuietInstall -Force
+      when: not (already_installed.stdout | trim | bool)
+      register: install_result
+
+    - name: Clean up the package file from the machine
+      ansible.windows.win_file:
+        path: "{{ ppkg_remote_path }}"
+        state: absent
+      when: not (already_installed.stdout | trim | bool)
+
+    # Device rename and Entra ID join are both customizations that only take
+    # effect after a restart - Install-ProvisioningPackage returning rc=0
+    # just means it staged the package, not that the join actually completed.
+    - name: Reboot to finalize the join
+      ansible.windows.win_reboot:
+        reboot_timeout: 600
+      when: not (already_installed.stdout | trim | bool)
+
+    - name: Report status
+      debug:
+        msg: >-
+          {{ inventory_hostname }}:
+          {{ 'joined this run' if not (already_installed.stdout | trim | bool)
+              else 'already joined, skipped' }}

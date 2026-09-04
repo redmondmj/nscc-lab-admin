@@ -1,0 +1,35 @@
+# Inventory TEMPLATE.
+#
+# The real inventory is gitignored — it carries hostname comments that
+# embed device serial numbers.
+#
+#   Real file:  ansible/inventory/hosts.yml  (same directory)
+#   Also on:    the Ansible control node, at ~/<repo>/ansible/inventory/
+#
+# To start from this template:
+#   cp hosts.yml.example hosts.yml
+#
+# Note: `ansible-pull` does not need this file — it runs against localhost
+# with an implicit inventory. This is only needed for push-mode runs from
+# the control node.
+
+all:
+  children:
+    windows_lab:
+      hosts:
+        # One entry per liberated machine. Numbering follows sequential
+        # physical visit order (as written to liberated-machines.csv),
+        # NOT switch port order.
+        #
+        # IP convention: LAB3XX-NN -> 10.20.0.(NN+10)
+
+        LAB3XX-01:
+          ansible_host: 10.20.0.11  # HOSTNAME-AAAAAAA, SW-XX port 9
+        LAB3XX-02:
+          ansible_host: 10.20.0.12  # HOSTNAME-BBBBBBB, SW-XX port 10
+        LAB3XX-03:
+          ansible_host: 10.20.0.13  # HOSTNAME-CCCCCCC, SW-XX port 11
+
+# ./group_vars/windows_lab/*.yml is auto-loaded for this group. Keep
+# vaulted secrets in inventory/group_vars/windows_lab/vault.yml (also
+# gitignored — see vault.yml.example).

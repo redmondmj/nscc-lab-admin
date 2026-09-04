@@ -1,0 +1,12 @@
+# Copy this to vault.yml, fill in the real password, then encrypt it:
+#
+#   cp vault.yml.example vault.yml
+#   <edit vault.yml with the real password you set via Bootstrap-WinRM-Ansible.ps1>
+#   ansible-vault encrypt vault.yml
+#
+# vault.yml (encrypted) is safe to commit. Never commit this .example file's
+# sibling in plaintext, and never put the vault password itself in git -
+# store it via --vault-password-file pointing at a gitignored local file,
+# or ANSIBLE_VAULT_PASSWORD_FILE env var on the control node.
+
+ansible_password: "CHANGE_ME"

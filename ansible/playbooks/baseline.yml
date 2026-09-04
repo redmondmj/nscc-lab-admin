@@ -1,0 +1,33 @@
+---
+# Baseline config for a liberated lab machine. Idempotent - safe to re-run
+# any time (including after a FOG reimage + Bootstrap-WinRM-Ansible.ps1).
+#
+#   ansible-playbook playbooks/baseline.yml --ask-vault-pass
+#
+- name: Lab 312 baseline configuration
+  hosts: windows_lab
+  gather_facts: true
+  tasks:
+    - name: Ensure ansible-ops account is in Administrators
+      ansible.windows.win_group_membership:
+        name: Administrators
+        members:
+          - "{{ ansible_user }}"
+        state: present
+
+    - name: Confirm only the HTTPS WinRM listener exists (no plaintext HTTP)
+      ansible.windows.win_shell: |
+        (Get-ChildItem WSMan:\localhost\Listener | Where-Object { $_.Keys -contains "Transport=HTTP" }).Count
+      register: http_listeners
+      changed_when: false
+      failed_when: http_listeners.stdout | trim | int > 0
+
+    - name: Set Windows Update to notify only (students shouldn't get surprise reboots mid-lab)
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU
+        name: AUOptions
+        data: 2
+        type: dword
+
+    # Extend below as coursework needs - e.g. baseline tooling installs,
+    # local firewall logging, event log forwarding to SecurityOnion, etc.

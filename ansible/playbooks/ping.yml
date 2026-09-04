@@ -1,0 +1,22 @@
+---
+# Connectivity smoke test. Run this first against any newly-bootstrapped
+# machine before trusting it in the baseline playbook.
+#
+#   ansible-playbook playbooks/ping.yml --ask-vault-pass
+#
+- name: Verify WinRM connectivity
+  hosts: windows_lab
+  gather_facts: false
+  tasks:
+    - name: win_ping
+      ansible.windows.win_ping:
+
+    - name: Report OS version
+      # Get-ComputerInfo aggregates dozens of data sources and is notoriously
+      # slow (30-60s+) - a targeted CIM query gets the same answer in ~1s.
+      ansible.windows.win_shell: "(Get-CimInstance Win32_OperatingSystem).Caption"
+      register: os_info
+      changed_when: false
+
+    - debug:
+        msg: "{{ inventory_hostname }}: {{ os_info.stdout_lines[0] }}"

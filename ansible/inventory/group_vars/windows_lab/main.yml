@@ -1,0 +1,11 @@
+# Non-secret connection vars for the windows_lab group.
+# Matches Bootstrap-WinRM-Ansible.ps1: HTTPS listener, basic auth, self-signed cert.
+
+ansible_connection: winrm
+ansible_port: 5986
+ansible_winrm_transport: basic
+ansible_winrm_scheme: https
+ansible_winrm_server_cert_validation: ignore   # self-signed certs on the lab machines
+ansible_user: ansible-ops
+
+# ansible_password is defined in vault.yml (ansible-vault encrypted, gitignored raw form).
