@@ -1,26 +1,27 @@
-# NSCC Lab 312 — Independent Lab Administration
+# NSCC Lab — Independent Lab Administration
 
-Migrates the Lab 312 physical machines off NSCC's domain/Intune tenant and
+Migrates a lab's physical machines off NSCC's domain/Intune tenant and
 into self-managed administration for IT Systems Management & Security
 coursework. Managed going forward via **Ansible** (not Intune/Entra) —
 Intune/MDM concepts are taught separately on the course VM fleet.
 
 ## Status
 
-- [x] Ansible/WinRM bootstrap validated end-to-end against a test VM
-      (`Ansible-Windows11-1`, Proxmox-Prod pve2/3500) - control node setup,
-      `Bootstrap-WinRM-Ansible.ps1`, vault password flow, and `ping.yml`
-      all confirmed working before touching real lab hardware.
-- [x] NSCC decommission request sent (`docs/nscc-decommission-request.md`)
-- [x] LAB312-01 through 12 fully processed end-to-end: liberated, VLAN 20
-      (reserved IPs 10.20.0.11-22), Ansible-managed - all confirmed reachable
-      via `ping.yml` as of 2026-09-04. LAB312-01 also Entra-joined to
-      nscctruro.ca + Intune-enrolled (pipeline proven; 02-12 still need the
-      entra-join.yml pass)
-- [ ] Remaining 13 machines (see `docs/lab312-port-map.md`)
-- [ ] NSCC confirms Intune retirement + Autopilot de-registration
-- [ ] Per-machine liberation (`bootstrap/Liberate-FromNSCC.ps1`)
-- [ ] Per-machine Ansible bootstrap (`bootstrap/Bootstrap-WinRM-Ansible.ps1`)
+Status of the reference deployment this was built for — a 25-machine lab,
+useful mainly as evidence of what the tooling has actually been run against:
+
+- [x] Ansible/WinRM bootstrap validated end-to-end against a throwaway test
+      VM first - control node setup, `Bootstrap-WinRM-Ansible.ps1`, vault
+      password flow, and `ping.yml` all confirmed before touching real
+      lab hardware.
+- [x] Decommission request sent (`docs/nscc-decommission-request.md`)
+- [x] 24 of 25 machines liberated end-to-end: domain-disconnected, moved to
+      the lab VLAN with reserved IPs, and Ansible-managed
+- [x] Bulk Entra enrollment (`entra-join.yml`) pushed fleet-wide
+- [ ] 1 machine still to liberate
+- [ ] 4 machines currently unreachable over WinRM pending an on-site fix -
+      see Troubleshooting below
+- [ ] Institution confirms Intune retirement + Autopilot de-registration
 - [ ] Golden image captured in FOG
 - [ ] Baseline playbook run against full inventory
 
@@ -37,7 +38,7 @@ Intune/MDM concepts are taught separately on the course VM fleet.
 5. Log back in as `.\ansible-ops` to confirm the local account survived the
    disconnect.
 6. Once all machines for the session are done: `python3 ansible/tools/csv-to-inventory.py liberated-machines.csv`
-   on Docker-Host, paste the output into `inventory/hosts.yml` in one batch.
+   on the control node, paste the output into `inventory/hosts.yml` in one batch.
 7. `ansible-playbook playbooks/ping.yml` to confirm the whole batch.
 
 `Run-Full-Migration.ps1` refuses to run past the NSCC-disconnect step
@@ -50,7 +51,7 @@ been sent.
 ```
 docs/        Decommission request + process notes
 bootstrap/   One-time, per-machine USB scripts (run once via elevated session)
-ansible/     Control-node config, inventory, playbooks (targets Docker-Host VM 103, pve/Proxmox-Prod)
+ansible/     Control-node config, inventory, playbooks
 imaging/     FOG setup notes — golden-image reset workflow
 ```
 
@@ -62,7 +63,7 @@ committed in their place.
 
 | Real file (gitignored) | Template committed here | What it holds |
 |---|---|---|
-| `docs/lab312-port-map.md` | `docs/lab312-port-map.example.md` | Per-desk switch/port map: MACs, serials, legacy IPs |
+| `docs/<lab>-port-map.md` | `docs/lab-port-map.example.md` | Per-desk switch/port map: MACs, serials, legacy IPs |
 | `ansible/inventory/hosts.yml` | `ansible/inventory/hosts.yml.example` | Live inventory (hostname comments embed serials) |
 | `ansible/inventory/group_vars/windows_lab/vault.yml` | `vault.yml.example` | ansible-vault encrypted `ansible_password` |
 | `bootstrap/Run-Bootstrap.local.ps1` | — | USB wrapper carrying the ansible-ops password |
@@ -75,6 +76,29 @@ the working checkout, and the Ansible control node. Keep both.
 Note: the hostname suffixes on these machines (e.g. `HOSTNAME-AAAAAAA`) are
 the Dell service tags, i.e. the device serial numbers — which is why the
 port map and inventory are excluded rather than just the obvious secrets.
+
+## Adapting this to another lab
+
+Everything here is written against one reference deployment, so a few
+things are specific to it and need substituting. Nothing is load-bearing
+beyond find-and-replace:
+
+| Replace | With | Appears in |
+|---|---|---|
+| Room/lab number (`312`, `LAB312-##`) | Your lab's number and host prefix | Inventory, port map, hostnames |
+| Entra tenant | Your own tenant domain | `ansible/README.md`, `entra-join.yml` |
+| `10.20.0.0/24` and VLAN 20 | Your lab VLAN and subnet | Inventory, port map |
+| Control node address | Your Ansible control node | `Run-Bootstrap.local.ps1`, `ansible.cfg` |
+| `ansible-ops` | Whatever you want the service account called | Bootstrap scripts, `group_vars` |
+
+The IP convention used throughout is `LAB###-NN -> 10.20.0.(NN+10)`, which
+is arbitrary — pick whatever suits, but keep it mechanical, since the port
+map and inventory are maintained by hand.
+
+One thing worth carrying over regardless of naming: machine numbering
+follows **sequential physical visit order**, not switch port order. Port
+numbers do not track desk layout, and assuming they do has already caused
+one real mislabeling incident here.
 
 ## Architecture decisions (and why)
 
@@ -93,4 +117,4 @@ port map and inventory are excluded rather than just the obvious secrets.
   no more updates or Win11 compatibility work. ConfigMgr is supported but
   wants AD + SQL + a site server, which conflicts with the workgroup-only
   decision above. FOG is lightweight, Linux-hosted, and fits directly
-  alongside the Ansible control node on Docker-Host.
+  alongside the Ansible control node.

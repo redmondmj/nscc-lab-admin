@@ -16,7 +16,7 @@
       ansible-vault on the control node (see ansible/README.md).
 
 .PARAMETER ControlNodeAddress
-    IP or hostname of the Ansible control node (Docker-Host VM). Firewall
+    IP or hostname of the Ansible control node. Firewall
     rule for WinRM HTTPS is scoped to this address.
 
 .PARAMETER AnsibleUser
@@ -77,7 +77,7 @@ if (Get-LocalUser -Name $AnsibleUser -ErrorAction SilentlyContinue) {
     Set-LocalUser -Name $AnsibleUser -Password $AnsiblePassword
 } else {
     New-LocalUser -Name $AnsibleUser -Password $AnsiblePassword `
-        -Description "Ansible control-node connection account - lab312" `
+        -Description "Ansible control-node connection account" `
         -PasswordNeverExpires:$true
     Add-LocalGroupMember -Group "Administrators" -Member $AnsibleUser
 }

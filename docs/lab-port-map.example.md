@@ -4,7 +4,7 @@
 > device serial numbers, MAC addresses and internal topology, so it is
 > **gitignored and never committed**.
 >
-> **Real file location:** `docs/lab312-port-map.md` (same directory)
+> **Real file location:** `docs/<your-lab>-port-map.md` (same directory)
 > **Also kept on:** the Ansible control node, alongside the repo checkout
 >
 > If you have cloned this repo fresh and that file is missing, it has to

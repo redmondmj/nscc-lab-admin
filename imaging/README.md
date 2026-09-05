@@ -19,10 +19,10 @@ for that machine - but until then, treat "Reset this PC" as off-limits.
 FOG sidesteps this entirely: it's a raw disk image push over the network,
 not a Windows-mediated reset, so it never touches OOBE/Autopilot logic.
 
-## FOG server setup (on Docker-Host, VM 103)
+## FOG server setup (on the control node)
 
 FOG isn't natively containerized upstream - run it in a small dedicated VM
-or LXC container on Docker-Host rather than fighting the installer into a
+or LXC container on the control node rather than fighting the installer into a
 container:
 
 1. Debian/Ubuntu Server VM or LXC, 2 vCPU / 4GB RAM / 60GB+ disk is plenty

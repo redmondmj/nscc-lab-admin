@@ -1,5 +1,5 @@
 ---
-# One-time push of the nscctruro.ca bulk-enrollment provisioning package to
+# One-time push of the tenant bulk-enrollment provisioning package to
 # every already-onboarded machine in windows_lab. Run this AFTER a machine
 # has been through the physical bootstrap (Run-Full-Migration.ps1) and is
 # already reachable over Ansible - this handles the Entra ID join/Intune
@@ -16,7 +16,7 @@
 #
 #   ansible-playbook playbooks/entra-join.yml --vault-password-file ~/.ansible_vault_pass
 #
-- name: Push nscctruro.ca Entra ID bulk enrollment to Lab 312 fleet
+- name: Push Entra ID bulk enrollment to the lab fleet
   hosts: windows_lab
   gather_facts: false
   vars:

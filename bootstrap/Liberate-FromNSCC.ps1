@@ -28,7 +28,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$logPath = Join-Path $env:PUBLIC "Documents\lab312-liberate-$($env:COMPUTERNAME)-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
+$logPath = Join-Path $env:PUBLIC "Documents\lab-liberate-$($env:COMPUTERNAME)-$(Get-Date -Format 'yyyyMMdd-HHmmss').log"
 Start-Transcript -Path $logPath -Force | Out-Null
 
 function Assert-Admin {

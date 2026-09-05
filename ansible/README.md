@@ -1,6 +1,6 @@
 # Ansible control node
 
-Target: **Docker-Host (VM 103)**, node `pve`, Proxmox-Prod cluster.
+Target: a small Linux VM or container acting as the Ansible control node.
 
 ## One-time control node setup
 
@@ -10,7 +10,7 @@ Ubuntu 24.04+ / Debian 12+ block a plain `pip3 install` system-wide (PEP
 workaround:
 
 ```bash
-# On Docker-Host:
+# On the control node:
 sudo apt install -y python3-full python3-venv
 python3 -m venv ~/ansible-venv
 ~/ansible-venv/bin/pip install ansible pywinrm
@@ -49,15 +49,15 @@ per command instead of `--ask-vault-pass`.
 4. `ansible-playbook playbooks/ping.yml --vault-password-file ~/.ansible_vault_pass`
 5. `ansible-playbook playbooks/baseline.yml --vault-password-file ~/.ansible_vault_pass`
 
-## Entra ID join (nscctruro.ca)
+## Entra ID join
 
-Separate from the physical bootstrap - run this from Docker-Host, at scale,
+Separate from the physical bootstrap - run this from the control node, at scale,
 against every machine already onboarded to Ansible:
 
 1. Copy the provisioning package built in Windows Configuration Designer to
    `ansible/files/Bulk-Enrollment.ppkg` (gitignored - it embeds a live bulk
    enrollment token, never commit it).
-2. `scp` (or re-sync) that file to Docker-Host if it isn't there yet.
+2. `scp` (or re-sync) that file to the control node if it isn't there yet.
 3. `ansible-playbook playbooks/entra-join.yml --vault-password-file ~/.ansible_vault_pass`
 
 Safe to re-run as new machines get added to inventory - already-joined
@@ -65,7 +65,7 @@ machines are skipped. The bulk token expires ~30 days after generation;
 regenerate in WCD and re-copy the file if you're still onboarding machines
 past that window.
 
-Students sign into these machines with their own `nscctruro.ca` account as
+Students sign into these machines with their own tenant account as
 standard users. Y2 SysMan students get local admin via a dedicated Entra ID
 security group under Device settings -> "Additional local administrators
 on Entra joined devices" - not a shared local account.

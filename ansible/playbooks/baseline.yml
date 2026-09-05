@@ -4,7 +4,7 @@
 #
 #   ansible-playbook playbooks/baseline.yml --ask-vault-pass
 #
-- name: Lab 312 baseline configuration
+- name: Lab baseline configuration
   hosts: windows_lab
   gather_facts: true
   tasks:

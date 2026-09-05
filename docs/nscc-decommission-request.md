@@ -10,11 +10,11 @@ Fill in serials/asset tags below (keep the actual list in a local
 ---
 
 **To:** [NSCC IT / Intune admin contact]
-**Subject:** Device decommission request — Lab 312 hardware, [N] units
+**Subject:** Device decommission request — Lab [room] hardware, [N] units
 
 Hi [name/team],
 
-As part of [reference to the approved Lab 312 reallocation], we're moving
+As part of [reference to the approved lab reallocation], we're moving
 the following [N] devices out of NSCC's Intune management into our own
 sandbox tenant:
 

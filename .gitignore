@@ -16,7 +16,8 @@ ansible/files/*.ppkg
 # .example templates are committed in their place; the real files live
 # locally and on the Ansible control node only.
 # ---------------------------------------------------------------------
-docs/lab312-port-map.md
+docs/*port-map.md
+!docs/*port-map.example.md
 ansible/inventory/hosts.yml
 docs/network-modernization-status.md
 *-hash.csv
