@@ -49,7 +49,7 @@ been sent.
 ## Layout
 
 ```
-docs/        Decommission request + process notes
+docs/        Decommission request, port map template, printable door notice
 bootstrap/   One-time, per-machine USB scripts (run once via elevated session)
 ansible/     Control-node config, inventory, playbooks
 imaging/     FOG setup notes — golden-image reset workflow
@@ -90,6 +90,7 @@ beyond find-and-replace:
 | `10.20.0.0/24` and VLAN 20 | Your lab VLAN and subnet | Inventory, port map |
 | Control node address | Your Ansible control node | `Run-Bootstrap.local.ps1`, `ansible.cfg` |
 | `ansible-ops` | Whatever you want the service account called | Bootstrap scripts, `group_vars` |
+| Support contact name | Whoever actually fields the questions | `docs/lab-door-notice.html` |
 
 The IP convention used throughout is `LAB###-NN -> 10.20.0.(NN+10)`, which
 is arbitrary — pick whatever suits, but keep it mechanical, since the port
