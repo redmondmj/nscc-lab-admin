@@ -7,7 +7,7 @@ Intune/MDM concepts are taught separately on the course VM fleet.
 
 ## Status
 
-Status of the reference deployment this was built for — a 25-machine lab,
+Status of the reference deployment this was built for — a 24-machine lab,
 useful mainly as evidence of what the tooling has actually been run against:
 
 - [x] Ansible/WinRM bootstrap validated end-to-end against a throwaway test
@@ -15,10 +15,10 @@ useful mainly as evidence of what the tooling has actually been run against:
       password flow, and `ping.yml` all confirmed before touching real
       lab hardware.
 - [x] Decommission request sent (`docs/nscc-decommission-request.md`)
-- [x] 24 of 25 machines liberated end-to-end: domain-disconnected, moved to
+- [x] All 24 machines liberated end-to-end: domain-disconnected, moved to
       the lab VLAN with reserved IPs, and Ansible-managed
+      (the room is 24 machines; a 25th port belongs to the instructor dock)
 - [x] Bulk Entra enrollment (`entra-join.yml`) pushed fleet-wide
-- [ ] 1 machine still to liberate
 - [ ] 4 machines currently unreachable over WinRM pending an on-site fix -
       see Troubleshooting below
 - [ ] Institution confirms Intune retirement + Autopilot de-registration
@@ -101,12 +101,87 @@ follows **sequential physical visit order**, not switch port order. Port
 numbers do not track desk layout, and assuming they do has already caused
 one real mislabeling incident here.
 
+## Troubleshooting
+
+Things that cost real time on the reference deployment, and how each
+announces itself.
+
+**UAC prompts after elevating with Make Me Admin want the full UPN.**
+Once elevated, subsequent UAC dialogs will not accept a bare username —
+they need `username@your-tenant`. A Windows Hello PIN works too and is
+far quicker. This reads to students as "it's rejecting my password," so
+it is worth saying out loud in class rather than fielding it one desk at
+a time.
+
+**"The specified credentials were rejected by the server" — but the
+password is right.** Institutional Intune/GPO policy can silently
+re-lock WinRM's Basic-auth setting on reboot, even on a machine that
+worked yesterday. Confirm by checking `Basic` in
+`winrm get winrm/config/service`. Re-running
+`bootstrap/Bootstrap-WinRM-Ansible.ps1` fixes it, because it removes the
+policy-backed registry key before re-enabling Basic. If it recurs, the
+underlying fix is completing the device's removal from the previous
+tenant, not repeating the repair.
+
+Note that script also resets the service account's password as a side
+effect, so it repairs a credential mismatch at the same time — which
+makes it easy to conflate two different causes. If both auth transports
+(`basic` *and* `ntlm`) reject the same credentials, the problem is the
+account, not the transport.
+
+**A provisioning package reporting success is not proof of enrollment.**
+`Install-ProvisioningPackage` returning `rc=0` and `Get-ProvisioningPackage`
+reporting the package as installed both mean only that the package was
+*staged*. The Entra join happens at next boot, and if that step fails it
+fails silently while every local check keeps saying success. Three machines
+sat unjoined for four days looking perfectly healthy. **Verify with
+`dsregcmd /status` and require both `AzureAdJoined : YES` and a
+`TenantName` line** — the absence of `TenantName` is the tell.
+
+A package can also wedge: `IsInstalled : False` while still blocking
+reinstall with `0x800700B7` (`ERROR_ALREADY_EXISTS`).
+`Remove-ProvisioningPackage` sometimes clears it and sometimes does not.
+Cap the remote attempts and join by hand — Settings → Accounts → Access
+work or school → Connect → *Join this device to Microsoft Entra ID*.
+
+**Device join may be restricted to admins.** A plain member account will
+be refused when joining manually. Use an admin account, or loosen Entra →
+Devices → Device settings. Bulk-enrollment packages are unaffected, since
+the bulk token carries its own join rights.
+
+**An unreachable machine is often just asleep.** A sleeping machine
+produces a connection timeout indistinguishable from a real fault. Set
+`powercfg /change standby-timeout-ac 0` via `baseline.yml` rather than
+diagnosing it repeatedly.
+
+**Don't trust the controller's client status.** UniFi reported every
+machine offline, last seen four days earlier, while Intune showed the same
+machines checking in that afternoon. Where the network controller and the
+device disagree, believe the device.
+
+**A manual join sets a primary user; bulk enrollment does not.** Machines
+joined by hand show whoever signed in as primary user, which makes them
+inconsistent with the rest of the fleet. Clear it in Intune → Devices →
+Properties if uniformity matters.
+
 ## Architecture decisions (and why)
 
-- **No Entra ID / Intune enrollment for this fleet.** Deliberate choice —
-  students already get Intune/MDM hands-on via the VM lab. These machines
-  stay workgroup, managed purely over WinRM/Ansible. This means local admin
-  is Ansible-managed (vaulted password), not Entra-group/LAPS-based.
+- **Joined to our own tenant, not the institution's.** The point was never
+  "no Entra" — it was "not *their* Entra." Machines are Entra-joined to a
+  tenant we control, so students sign in with tenant accounts, while
+  configuration management stays with Ansible over WinRM rather than MDM
+  policy. Identity from Entra, configuration from Ansible.
+- **Local admin via Make Me Admin, left unrestricted — deliberately.**
+  Make Me Admin is inherited from the original image and its allow-list is
+  unconfigured, which means any interactive user can self-elevate. That is
+  a conscious decision, not an oversight: students had the same access on
+  the institution's network, so restricting it here would be a downgrade
+  rather than a safeguard. Note it operates as a local SYSTEM service and
+  consults Entra not at all, so it is invisible to Device settings and
+  Intune account-protection policy — if you *do* want it scoped, that is
+  `HKLM\SOFTWARE\Policies\SinclairCC\MakeMeAdmin` (`Allowed Entities` /
+  `Denied Entities`), and it belongs in `baseline.yml` so the state is
+  asserted rather than inherited.
 - **NSCC release is a hard prerequisite, not a nice-to-have.** The
   liberation script only strips *local* enrollment artifacts. The Intune
   device object and any Autopilot registration live server-side in NSCC's
