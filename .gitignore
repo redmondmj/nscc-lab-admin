@@ -34,3 +34,7 @@ Thumbs.db
 # Stray logs written into the working dir by local MCP servers
 proxmox_mcp.log
 *.log
+
+# Windows Explorer duplicates
+* - Copy.*
+*- Copy.html
