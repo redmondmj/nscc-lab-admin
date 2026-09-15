@@ -113,6 +113,13 @@ far quicker. This reads to students as "it's rejecting my password," so
 it is worth saying out loud in class rather than fielding it one desk at
 a time.
 
+**Windows Hello PIN complexity differs by account.** A plain member
+account can set a short numeric PIN; a privileged account is held to a
+longer alphanumeric-plus-symbol PIN on the same machine. Students get
+the convenient experience and staff do not, which reads as a bug when
+you demo it one way and they hit the other. Nothing is misconfigured —
+but say it out loud rather than fielding it at the desk.
+
 **"The specified credentials were rejected by the server" — but the
 password is right.** Institutional Intune/GPO policy can silently
 re-lock WinRM's Basic-auth setting on reboot, even on a machine that
