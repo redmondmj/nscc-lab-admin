@@ -29,5 +29,16 @@
         data: 2
         type: dword
 
+    - name: Never sleep on AC power (a sleeping machine looks identical to a
+        dead one over WinRM - "No route to host" either way - and costs a
+        physical walk to tell the difference)
+      ansible.windows.win_shell: powercfg /change standby-timeout-ac 0
+      changed_when: true
+
+    - name: Never turn off the display on AC power either (screen-off still
+        looks awake to WinRM, but reads as "broken" to whoever's using it)
+      ansible.windows.win_shell: powercfg /change monitor-timeout-ac 0
+      changed_when: true
+
     # Extend below as coursework needs - e.g. baseline tooling installs,
     # local firewall logging, event log forwarding to SecurityOnion, etc.
