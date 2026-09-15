@@ -1,0 +1,39 @@
+---
+# Read-only survey of Wake-on-LAN support/state across the fleet. Makes no
+# changes - just reports what each machine's real (non-USB, non-virtual)
+# NIC currently allows, so a WOL rollout plan can be scoped from a desk
+# instead of walking BIOS menus.
+#
+#   ansible-playbook playbooks/check-wol.yml --vault-password-file ~/.ansible_vault_pass
+#
+- name: Survey Wake-on-LAN support and current settings
+  hosts: windows_lab
+  gather_facts: false
+  tasks:
+    - name: Report WOL-relevant adapter/power settings
+      ansible.windows.win_shell: |
+        # -Physical excludes VMware/Hyper-V/loopback virtual adapters, which
+        # otherwise get picked up by MediaType/Status alone (these machines
+        # run VMware for coursework) and report meaningless "Enabled" WOL
+        # values that reflect the virtual driver, not real hardware.
+        $adapter = Get-NetAdapter -Physical | Where-Object { $_.Status -eq 'Up' } | Select-Object -First 1
+        if (-not $adapter) { Write-Output "NO_PHYSICAL_ADAPTER_UP"; exit 0 }
+
+        $magicPacket = Get-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName "Wake on Magic Packet" -ErrorAction SilentlyContinue
+        $wakePattern = Get-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName "Wake on Pattern Match" -ErrorAction SilentlyContinue
+        $power = Get-NetAdapterPowerManagement -Name $adapter.Name -ErrorAction SilentlyContinue
+        $fastStartup = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power" -Name HiberbootEnabled -ErrorAction SilentlyContinue).HiberbootEnabled
+
+        [PSCustomObject]@{
+          Adapter               = $adapter.Name
+          MagicPacketEnabled    = if ($magicPacket) { $magicPacket.DisplayValue } else { "NOT_SUPPORTED_BY_DRIVER" }
+          WakeOnPatternEnabled  = if ($wakePattern) { $wakePattern.DisplayValue } else { "NOT_SUPPORTED_BY_DRIVER" }
+          WakeOnMagicPacket_PM  = if ($power) { $power.WakeOnMagicPacket } else { "UNKNOWN" }
+          FastStartupEnabled    = if ($null -ne $fastStartup) { [bool]$fastStartup } else { "UNKNOWN (key absent - likely off)" }
+        } | Format-List | Out-String
+      register: wol_check
+      changed_when: false
+
+    - name: Show result
+      ansible.builtin.debug:
+        msg: "{{ wol_check.stdout }}"
