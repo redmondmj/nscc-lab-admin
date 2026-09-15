@@ -19,11 +19,16 @@ useful mainly as evidence of what the tooling has actually been run against:
       the lab VLAN with reserved IPs, and Ansible-managed
       (the room is 24 machines; a 25th port belongs to the instructor dock)
 - [x] Bulk Entra enrollment (`entra-join.yml`) pushed fleet-wide
-- [ ] 4 machines currently unreachable over WinRM pending an on-site fix -
-      see Troubleshooting below
+- [x] All 24 machines confirmed reachable over WinRM (`ping.yml`
+      clean, `ok=24`) - the last stragglers turned out to be a mix of
+      the WinRM Basic-auth relock (see Troubleshooting) and machines
+      genuinely asleep or unplugged, not new faults
+- [x] Baseline playbook run against full inventory (`ok=24`,
+      `changed=24` on first run) - `ansible-ops` in Administrators,
+      HTTPS-only WinRM, notify-only Windows Update, and no more
+      sleep/display-off on AC power
 - [ ] Institution confirms Intune retirement + Autopilot de-registration
 - [ ] Golden image captured in FOG
-- [ ] Baseline playbook run against full inventory
 
 ## Real hardware rollout (per machine)
 
