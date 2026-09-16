@@ -35,6 +35,9 @@ Thumbs.db
 proxmox_mcp.log
 *.log
 
+# Generated per-run output, not source
+ansible/software-inventory/
+
 # Windows Explorer duplicates
 * - Copy.*
 *- Copy.html

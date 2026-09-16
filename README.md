@@ -176,18 +176,52 @@ joined by hand show whoever signed in as primary user, which makes them
 inconsistent with the rest of the fleet. Clear it in Intune → Devices →
 Properties if uniformity matters.
 
-**Intune can silently remove Make Me Admin on MDM-enrolled machines.**
-First seen 2026-09-16 on two machines (`LAB312-07`, `LAB312-20`), both
-confirmed MDM-enrolled (`dsregcmd /status` shows an `MdmUrl`) - the
-service, its registry uninstall entry, and its program folder were all
-gone, which is the signature of a real remediation action running, not
-corruption. Since Intune auto-enrollment is deliberately left on (see
-Architecture decisions below), this is an active policy conflict, not
-something to fix by disabling enrollment. Exact policy not yet
-identified - Endpoint Security → Attack Surface Reduction rules are the
-leading suspect, since Make Me Admin's self-elevation design is
-structurally what ASR rules target. Check any newly-enrolled machine's
-Make Me Admin state directly rather than assuming it's fine.
+**Software has gone missing fleet-wide, cause unconfirmed - use
+`software-inventory.yml` to find the current scope, don't assume it's
+isolated.** First seen 2026-09-16, reported as "Make Me Admin missing"
+on two machines but actually two separate incidents once the full
+fleet was surveyed:
+
+- **Make Me Admin** gone (service, registry uninstall entry, and
+  program folder all removed - the signature of a real
+  uninstall/remediation action, not corruption) on `LAB312-02, 07, 12,
+  20, 24`.
+- **Cisco Packet Tracer, Sassafras KeyServer, and the .NET 8.x
+  runtime** all gone together (confirmed genuinely removed, not just
+  version-bumped) on a different but overlapping set: `LAB312-11, 12,
+  20, 21, 24`.
+
+Five mechanisms were checked and ruled out with real data, not
+assumption - worth reading before re-investigating from scratch:
+- MDM enrollment status (`IntuneManagementExtension` service)
+  identical (`True`) fleet-wide, so it can't explain why only some
+  machines lost anything.
+- OS build/UBR identical across 22 of 24 machines, including every
+  affected one - not a Windows Update/feature-update side effect.
+- The missing .NET runtime isn't present under a newer version string
+  either - genuinely removed, not serviced/upgraded.
+- Intune's own `AgentExecutor.log` and `Win32AppInventory.log` have
+  zero mentions of any of the missing apps - Intune's Win32 app
+  management (this tenant's, or cleanup from the prior NSCC
+  enrollment) left no trace of touching them.
+- No `ProgramData` remnants for Sassafras/KeyServer either - not even
+  logs survived, on any of the five affected machines.
+
+Leading theory for the Packet Tracer/Sassafras/.NET cluster: Sassafras
+KeyServer is a license-metering client, cut off from NSCC's license
+server since liberation - fail-closed self-removal after a grace
+period would explain a clean, dependency-cascading removal without
+requiring any live NSCC connectivity. Unconfirmed. The Make Me Admin
+loss has no theory left standing at all - classic GPO software removal
+was also considered and set aside, since it requires live domain
+policy processing to trigger and these machines are confirmed
+domain-disjoined (`dsregcmd` shows `DomainJoined: NO`).
+
+Practical takeaway until this recurs with better data: run
+`software-inventory.yml` periodically (a scheduled/cron run, not just
+reactively) so a recurrence is caught within hours with a narrow
+enough time window to actually find the trigger, instead of a blind
+multi-day log search like this one.
 
 ## Architecture decisions (and why)
 

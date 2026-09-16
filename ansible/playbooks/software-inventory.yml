@@ -1,0 +1,37 @@
+---
+# Pulls a flat installed-programs list from every lab machine into a local
+# directory on the control node, one file per host, so the fleet can be
+# diffed for anomalies (like the Make Me Admin disappearance on
+# 2026-09-16) instead of checking for a specific known-missing program
+# one name at a time.
+#
+#   ansible-playbook playbooks/software-inventory.yml --vault-password-file ~/.ansible_vault_pass
+#
+# Then, from ansible/:
+#   for f in software-inventory/*.txt; do echo "=== $f ($(wc -l < "$f") entries) ==="; done
+#   diff software-inventory/LAB312-01.txt software-inventory/LAB312-07.txt
+#
+# Or to find anything present on most machines but missing on one:
+#   sort software-inventory/*.txt | uniq -c | sort -n | awk '$1 < 20' | less
+- name: Collect installed-software inventory across the fleet
+  hosts: windows_lab
+  gather_facts: false
+  tasks:
+    - name: Write installed-programs list to a temp file on the machine
+      ansible.windows.win_shell: |
+        $paths = @(
+          'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*',
+          'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        )
+        Get-ItemProperty $paths -ErrorAction SilentlyContinue |
+          Where-Object { $_.DisplayName } |
+          Select-Object -ExpandProperty DisplayName |
+          Sort-Object -Unique |
+          Set-Content -Path "C:\Windows\Temp\installed-programs.txt" -Encoding UTF8
+      changed_when: false
+
+    - name: Fetch it back to the control node
+      ansible.builtin.fetch:
+        src: "C:\\Windows\\Temp\\installed-programs.txt"
+        dest: "software-inventory/{{ inventory_hostname }}.txt"
+        flat: true
