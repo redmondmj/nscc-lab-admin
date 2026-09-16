@@ -1,0 +1,49 @@
+---
+# Generic silent-install pusher for one piece of software across the
+# fleet (or a --limit subset). Source installers are never committed -
+# they're site-specific binaries, staged locally under ansible/files/
+# same as Bulk-Enrollment.ppkg.
+#
+# Usage:
+#   ansible-playbook playbooks/push-software.yml --vault-password-file ~/.ansible_vault_pass \
+#     -e installer_local_path=files/MakeMeAdminSetup.msi \
+#     -e installer_product_name="Make Me Admin" \
+#     -e installer_arguments="/qn /norestart" \
+#     --limit LAB312-02,LAB312-07,LAB312-12,LAB312-20,LAB312-24
+#
+# installer_arguments defaults assume an MSI; pass the right silent
+# flags for .exe installers (varies per vendor - check with /? or /help
+# first, or the vendor's silent-install docs).
+#
+# win_package's product_id check makes this idempotent for MSIs (skips
+# machines that already have it) - for EXE installers without a
+# reliable product_id, it will just always report "changed".
+- name: Push and silently install one piece of software fleet-wide
+  hosts: windows_lab
+  gather_facts: false
+  vars:
+    installer_arguments: "/qn /norestart"
+  tasks:
+    - name: Fail early with a clear message if required vars are missing
+      ansible.builtin.fail:
+        msg: >-
+          Pass -e installer_local_path=... -e installer_product_name=...
+          (see the comment header in this playbook for a full example).
+      when: installer_local_path is not defined or installer_product_name is not defined
+
+    - name: Copy the installer to the machine
+      ansible.windows.win_copy:
+        src: "{{ installer_local_path }}"
+        dest: "C:\\Windows\\Temp\\{{ installer_local_path | basename }}"
+
+    - name: Install it silently
+      ansible.windows.win_package:
+        path: "C:\\Windows\\Temp\\{{ installer_local_path | basename }}"
+        product_id: "{{ installer_product_name }}"
+        arguments: "{{ installer_arguments }}"
+        state: present
+
+    - name: Clean up the staged installer
+      ansible.windows.win_file:
+        path: "C:\\Windows\\Temp\\{{ installer_local_path | basename }}"
+        state: absent

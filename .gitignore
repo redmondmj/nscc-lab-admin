@@ -7,6 +7,8 @@ ansible/inventory/group_vars/windows_lab/vault.yml
 ansible/inventory/group_vars/windows_lab/vault.yml.decrypted
 bootstrap/*.local.ps1
 ansible/files/*.ppkg
+ansible/files/*.msi
+ansible/files/*.exe
 
 # ---------------------------------------------------------------------
 # Site-specific data - never commit (this repo is public)
