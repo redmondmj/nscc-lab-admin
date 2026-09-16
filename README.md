@@ -176,13 +176,36 @@ joined by hand show whoever signed in as primary user, which makes them
 inconsistent with the rest of the fleet. Clear it in Intune → Devices →
 Properties if uniformity matters.
 
+**Intune can silently remove Make Me Admin on MDM-enrolled machines.**
+First seen 2026-09-16 on two machines (`LAB312-07`, `LAB312-20`), both
+confirmed MDM-enrolled (`dsregcmd /status` shows an `MdmUrl`) - the
+service, its registry uninstall entry, and its program folder were all
+gone, which is the signature of a real remediation action running, not
+corruption. Since Intune auto-enrollment is deliberately left on (see
+Architecture decisions below), this is an active policy conflict, not
+something to fix by disabling enrollment. Exact policy not yet
+identified - Endpoint Security → Attack Surface Reduction rules are the
+leading suspect, since Make Me Admin's self-elevation design is
+structurally what ASR rules target. Check any newly-enrolled machine's
+Make Me Admin state directly rather than assuming it's fine.
+
 ## Architecture decisions (and why)
 
 - **Joined to our own tenant, not the institution's.** The point was never
   "no Entra" — it was "not *their* Entra." Machines are Entra-joined to a
-  tenant we control, so students sign in with tenant accounts, while
-  configuration management stays with Ansible over WinRM rather than MDM
-  policy. Identity from Entra, configuration from Ansible.
+  tenant we control, so students sign in with tenant accounts.
+  Day-to-day configuration management stays with Ansible over WinRM
+  regardless of MDM state. Identity from Entra, configuration from
+  Ansible either way.
+- **Intune auto-enrollment is deliberately left on, not disabled.**
+  Unlike the institution's own MDM (which this fleet was liberated from),
+  our own tenant's Intune is a teaching asset: having both an
+  Ansible-managed and an Intune-managed device coexist in the same room
+  lets Intune/MDM concepts be demonstrated hands-on, not just talked
+  about on the course VM fleet. The tradeoff this creates: Intune
+  policies (Endpoint Security baselines, Attack Surface Reduction rules)
+  can conflict with things Ansible/the base image also set up - see the
+  Make Me Admin note below and the Troubleshooting entry on it.
 - **Local admin via Make Me Admin, left unrestricted — deliberately.**
   Make Me Admin is inherited from the original image and its allow-list is
   unconfigured, which means any interactive user can self-elevate. That is
