@@ -39,7 +39,8 @@ proxmox_mcp.log
 *.log
 
 # Generated per-run output, not source
-ansible/software-inventory/
+ansible/software-inventory*/
+ansible/playbooks/software-inventory*/
 
 # Windows Explorer duplicates
 * - Copy.*

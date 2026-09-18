@@ -33,5 +33,7 @@
     - name: Fetch it back to the control node
       ansible.builtin.fetch:
         src: "C:\\Windows\\Temp\\installed-programs.txt"
-        dest: "software-inventory/{{ inventory_hostname }}.txt"
+        # Anchored to ansible/ - a bare relative dest resolves against the
+        # playbook's own directory, which put the files under playbooks/.
+        dest: "{{ playbook_dir }}/../software-inventory/{{ inventory_hostname }}.txt"
         flat: true
