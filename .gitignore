@@ -21,6 +21,7 @@ ansible/files/*.exe
 docs/*port-map.md
 !docs/*port-map.example.md
 ansible/inventory/hosts.yml
+ansible/inventory/test.yml
 docs/network-modernization-status.md
 *-hash.csv
 serials.csv
