@@ -35,7 +35,11 @@
 
     - name: Copy the installer to the machine
       ansible.windows.win_copy:
-        src: "{{ installer_local_path }}"
+        # win_copy resolves a relative src against the playbook's own
+        # directory, not the shell's cwd - so relative paths are anchored
+        # to ansible/ here instead, making "files/<name>" mean
+        # ansible/files/<name> as documented. Absolute paths pass through.
+        src: "{{ installer_local_path if installer_local_path is match('^/') else playbook_dir ~ '/../' ~ installer_local_path }}"
         dest: "C:\\Windows\\Temp\\{{ installer_local_path | basename }}"
 
     - name: Install it silently
