@@ -25,8 +25,9 @@ useful mainly as evidence of what the tooling has actually been run against:
       genuinely asleep or unplugged, not new faults
 - [x] Baseline playbook run against full inventory (`ok=24`,
       `changed=24` on first run) - `ansible-ops` in Administrators,
-      HTTPS-only WinRM, notify-only Windows Update, and no more
-      sleep/display-off on AC power
+      HTTPS-only WinRM, and no more sleep/display-off on AC power
+      (Windows Update is deliberately not set here - see the Intune
+      update ring under Architecture decisions)
 - [ ] Institution confirms Intune retirement + Autopilot de-registration
 - [ ] Golden image captured in FOG
 
@@ -231,6 +232,16 @@ multi-day log search like this one.
   Day-to-day configuration management stays with Ansible over WinRM
   regardless of MDM state. Identity from Entra, configuration from
   Ansible either way.
+- **Windows Update is managed by an Intune update ring, not Ansible.**
+  One place owns update behavior. `baseline.yml` used to force
+  notify-only through the legacy Group Policy registry key, which
+  contradicts a ring set to auto-install and can silently override it;
+  that value is now actively removed rather than merely no longer set.
+  Scope the ring to a dedicated lab device group (dynamic rule
+  `device.displayName -startsWith "LAB312-"`) rather than All devices,
+  since the tenant also holds non-lab devices, and consider a long
+  feature-update deferral or a pinned feature-update target so a new
+  Windows release cannot land mid-semester.
 - **Intune auto-enrollment is deliberately left on, not disabled.**
   Unlike the institution's own MDM (which this fleet was liberated from),
   our own tenant's Intune is a teaching asset: having both an

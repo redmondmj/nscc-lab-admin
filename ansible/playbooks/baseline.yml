@@ -22,12 +22,16 @@
       changed_when: false
       failed_when: http_listeners.stdout | trim | int > 0
 
-    - name: Set Windows Update to notify only (students shouldn't get surprise reboots mid-lab)
+    # Windows Update is owned by the Intune update ring, not this playbook.
+    # This task used to force notify-only through the legacy policy key,
+    # which contradicts the ring's "auto install" and can override it, so
+    # the value is removed outright (not merely no longer set) to clear it
+    # from the machines that already received it.
+    - name: Remove the old notify-only Windows Update value (Intune update ring owns this now)
       ansible.windows.win_regedit:
         path: HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU
         name: AUOptions
-        data: 2
-        type: dword
+        state: absent
 
     - name: Never sleep on AC power (a sleeping machine looks identical to a
         dead one over WinRM - "No route to host" either way - and costs a
