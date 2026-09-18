@@ -7,7 +7,6 @@
 # Usage:
 #   ansible-playbook playbooks/push-software.yml --vault-password-file ~/.ansible_vault_pass \
 #     -e installer_local_path=files/MakeMeAdminSetup.msi \
-#     -e installer_product_name="Make Me Admin" \
 #     -e installer_arguments="/qn /norestart" \
 #     --limit LAB312-02,LAB312-07,LAB312-12,LAB312-20,LAB312-24
 #
@@ -15,9 +14,12 @@
 # flags for .exe installers (varies per vendor - check with /? or /help
 # first, or the vendor's silent-install docs).
 #
-# win_package's product_id check makes this idempotent for MSIs (skips
-# machines that already have it) - for EXE installers without a
-# reliable product_id, it will just always report "changed".
+# For an MSI, win_package reads the product code from the file itself,
+# so re-runs skip machines that already have it - nothing else to pass.
+# For an .exe there is no product code to read: also pass
+# -e installer_product_id=<registry uninstall key name or GUID> so it
+# can tell whether the software is already installed, otherwise it
+# reports "changed" and reinstalls on every run.
 - name: Push and silently install one piece of software fleet-wide
   hosts: windows_lab
   gather_facts: false
@@ -27,9 +29,9 @@
     - name: Fail early with a clear message if required vars are missing
       ansible.builtin.fail:
         msg: >-
-          Pass -e installer_local_path=... -e installer_product_name=...
-          (see the comment header in this playbook for a full example).
-      when: installer_local_path is not defined or installer_product_name is not defined
+          Pass -e installer_local_path=... (see the comment header in
+          this playbook for a full example).
+      when: installer_local_path is not defined
 
     - name: Copy the installer to the machine
       ansible.windows.win_copy:
@@ -39,7 +41,7 @@
     - name: Install it silently
       ansible.windows.win_package:
         path: "C:\\Windows\\Temp\\{{ installer_local_path | basename }}"
-        product_id: "{{ installer_product_name }}"
+        product_id: "{{ installer_product_id | default(omit) }}"
         arguments: "{{ installer_arguments }}"
         state: present
 
