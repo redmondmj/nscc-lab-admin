@@ -44,5 +44,37 @@
       ansible.windows.win_shell: powercfg /change monitor-timeout-ac 0
       changed_when: true
 
+    # UAC: keep standard-user elevation at "prompt for credentials" (3).
+    # Make Me Admin depends on it: it adds the student to Administrators,
+    # but their current session is still a standard token, so elevating
+    # goes through this setting. Value 0 ("automatically deny") blocked
+    # elevation on LAB312-07 and -20 on 2026-09-21 with a "blocked by group
+    # policy" message. Nothing in this repo sets it and it is not delivered
+    # by Intune, so the cause is unknown. IMPORTANT: after the first run,
+    # a "changed" result on this task means something set it again - treat
+    # that as a signal to investigate, not just a routine correction.
+    - name: Keep standard-user UAC elevation at "prompt for credentials" (Make Me Admin depends on it)
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+        name: ConsentPromptBehaviorUser
+        data: 3
+        type: dword
+
+    # Tripwire, deliberately last so a failure here doesn't skip the tasks
+    # above for that machine. Make Me Admin has vanished from machines
+    # before with no confirmed cause; this makes the next occurrence show
+    # up in the recap instead of in a student's bug report.
+    - name: Check Make Me Admin is present
+      ansible.windows.win_shell: "[bool](Get-Service | Where-Object { $_.Name -like '*MakeMe*' })"
+      register: mma_present
+      changed_when: false
+
+    - name: Flag machines that have lost Make Me Admin
+      ansible.builtin.fail:
+        msg: >-
+          Make Me Admin is missing on {{ inventory_hostname }}. Reinstall
+          with push-software.yml (see README Troubleshooting).
+      when: mma_present.stdout | trim != 'True'
+
     # Extend below as coursework needs - e.g. baseline tooling installs,
     # local firewall logging, event log forwarding to SecurityOnion, etc.
