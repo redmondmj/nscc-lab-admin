@@ -1,0 +1,98 @@
+# software-manifest.yml - what should be installed on every lab machine.
+#
+# The written-down baseline that state snapshots are checked against:
+#
+#   ansible-playbook playbooks/state-snapshot.yml --vault-password-file ~/.ansible_vault_pass
+#   python3 tools/snapshot-tool.py check snapshots/<label>
+#
+# `check` reports missing / wrong-version / unwanted software per machine
+# and prints ready-to-run push-software.yml commands for whatever can be
+# fixed. `draft` lists programs found on most machines that are NOT in this
+# file yet - run it after each snapshot until it comes back empty, which is
+# what makes this manifest comprehensive instead of "what someone
+# remembered".
+#
+# Entry fields
+#   name / name_regex  the Add/Remove Programs DisplayName, exactly (or a
+#                      full-match regex for names that embed a version)
+#   version            "any" (default), or a version; "2.4.1" also accepts
+#                      an installer that reports "2.4.1.0"
+#   state              present (default) | absent - `absent` entries are
+#                      flagged if found; removal is never automatic
+#   pinned             true = never auto-upgrade (curriculum-sensitive)
+#   notes              why, in a sentence
+#   deploy             how to push it with push-software.yml:
+#     type, installer (file staged in ansible/files/), sha256, arguments,
+#     product_id (needed for .exe installers so re-runs can detect them),
+#     source (where a human gets the installer)
+#
+# ALWAYS QUOTE sha256 values: YAML reads an unquoted all-digit hash as a
+# number and the tool will reject it.
+#
+# Installers are large binaries and are gitignored (see ansible/files/);
+# the hashes below are what protects against pushing a wrong or tampered
+# file. Record one whenever an installer is added.
+
+software:
+  # ---- Curriculum software ------------------------------------------------
+  - name: "Cisco Packet Tracer 9.0.1 64Bit"
+    version: "9.0.1.858"
+    pinned: true
+    notes: >-
+      NetAcad activities are built against a specific Packet Tracer version,
+      so this is deliberately not auto-upgraded. Inno Setup installer.
+    deploy:
+      type: exe
+      installer: CiscoPacketTracer_901_win_64bit.exe
+      sha256: "615e60ba1d58ec2f61bf7f0d5e7fcc735d0204ef769c6a741db5165c854efdeb"
+      product_id: "Cisco Packet Tracer 9.0.1 64Bit_is1"
+      arguments: "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-"
+      source: "Cisco Skills for All / NetAcad (login required): download by hand, scp to ansible/files/"
+
+  - name: "VirtViewer 11.0-256 (64-bit)"
+    version: "11.0.256"
+    notes: "SPICE client for the virtual-lab VMs. Machine-scope MSI, so it installs for every user."
+    deploy:
+      type: msi
+      installer: VirtViewer_11.0.256_Machine_X64_msi_en-US.msi
+      sha256: "b7de0474e97fe1e81101f2406fcf603fe08666bcb3816c3c465c8d64330be610"
+      source: "winget download --id RedHat.VirtViewer -e  (releases.pagure.org/virt-viewer)"
+
+  # ---- Elevation ----------------------------------------------------------
+  - name: "Make Me Admin"
+    version: "2.4.1"
+    notes: >-
+      The fleet was on 2.3 (no official 2.3 installer exists); 2.4.1 is an
+      in-place upgrade with no breaking changes. Until the remaining 2.3
+      machines are upgraded, `check` will show them as version drift - that
+      is expected. Needs no configuration: the healthy machines had no
+      policy or settings keys.
+    deploy:
+      type: msi
+      installer: MakeMeAdmin-2.4.1-x64-en-us.msi
+      sha256: ""   # fill in: `sha256sum` the file, compare to the published sha256sum.txt
+      source: "https://github.com/pseymour/MakeMeAdmin/releases (v2.4.1)"
+
+  # ---- Deliberately removed ----------------------------------------------
+  - name: "Sassafras KeyServer Platform Client"
+    state: absent
+    notes: >-
+      NSCC's license-metering client; cannot function without NSCC's
+      license server and is a suspect in the 2026-09-16 software-loss
+      incident. Decision: not reinstalled. Removal from the machines that
+      still have it is manual (it includes a kernel filter driver, so
+      expect a reboot; confirm Packet Tracer launches without it first).
+
+# ---- Not yet decided ------------------------------------------------------
+# Programs seen on most of the fleet on 2026-09-16 that still need a
+# keep / drop decision. Get exact DisplayNames and current versions from
+# `snapshot-tool.py draft` rather than typing them from this list.
+#
+#   Google Chrome                                          21/24
+#   Microsoft Teams Meeting Add-in for Microsoft Office    23/24
+#   Dell SupportAssist                                     19/24
+#   Dell SupportAssist OS Recovery Plugin for Dell Update  17/24
+#   Printer Installer Client (NSCC's print client - likely obsolete now)  18/24
+#   Microsoft .NET runtime 8.0.31 family                   19/24  (only if something needs it)
+#   Microsoft .NET runtime 10.0.12 family                  16/24  (only if something needs it)
+#   Microsoft OneDrive   (machine-wide install; version tracks Microsoft's updates)

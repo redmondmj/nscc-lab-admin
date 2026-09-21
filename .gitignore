@@ -38,9 +38,16 @@ Thumbs.db
 proxmox_mcp.log
 *.log
 
+# Python bytecode from running the tools
+__pycache__/
+*.pyc
+
 # Generated per-run output, not source
 ansible/software-inventory*/
 ansible/playbooks/software-inventory*/
+# State snapshots record account names (local users/admins) - never commit
+ansible/snapshots/
+ansible/playbooks/snapshots/
 
 # Windows Explorer duplicates
 * - Copy.*

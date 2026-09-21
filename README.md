@@ -224,6 +224,35 @@ reactively) so a recurrence is caught within hours with a narrow
 enough time window to actually find the trigger, instead of a blind
 multi-day log search like this one.
 
+## Tracking drift: snapshots and the software manifest
+
+On a shared lab where students have local admin, machines will drift, and
+Ansible only enforces what it has been told about. So the approach is
+layered: *write down* the baseline, *capture* what is actually there, and
+*compare*. None of this changes a machine except the explicit fix commands
+it prints.
+
+1. `playbooks/state-snapshot.yml` - read-only capture of every machine
+   (programs, services, local users/admins, policy registry, WinRM, power,
+   Defender, firewall, scheduled tasks, startup entries) into
+   `ansible/snapshots/<label>/<host>.txt`. Take a `known-good` set after
+   a verified-clean state, and a `pre-update`/`post-update` pair around a
+   Windows update. Snapshots contain account names and are gitignored.
+2. `tools/snapshot-tool.py outliers <dir>` - what differs across the
+   fleet, grouped ("these 3 machines are each missing the same 14 things").
+   `diff` two host files to compare a broken machine to a good one.
+3. `software-manifest.yml` - the written-down list of what must (or must
+   not) be installed, with version, hash and how to push it.
+   `tools/snapshot-tool.py check <dir>` reports drift against it and
+   prints ready-to-run `push-software.yml` commands; `draft <dir>` lists
+   programs on most machines that the manifest does not mention yet, which
+   is how it stays comprehensive. `check` exits non-zero on drift, so it
+   can gate a scheduled run.
+
+This is a *soft* reset in the sense that it re-applies known state; it
+cannot undo a change nobody has recorded. That is what the FOG golden
+image (`imaging/`) is for.
+
 ## Architecture decisions (and why)
 
 - **Joined to our own tenant, not the institution's.** The point was never

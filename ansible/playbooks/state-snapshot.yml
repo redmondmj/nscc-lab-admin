@@ -1,0 +1,62 @@
+---
+# Read-only capture of every lab machine's configuration into one text file
+# per host, so drift can be found by comparison instead of by a student
+# report. Changes nothing on the machines; the analysis is done offline by
+# tools/snapshot-tool.py.
+#
+#   ansible-playbook playbooks/state-snapshot.yml --vault-password-file ~/.ansible_vault_pass
+#   ansible-playbook playbooks/state-snapshot.yml ... -e snapshot_label=known-good
+#   ansible-playbook playbooks/state-snapshot.yml ... --limit LAB312-07
+#
+# Output lands in ansible/snapshots/<label>/<host>.txt (label defaults to
+# today's date; reuse a label to overwrite, or pick one to keep a
+# reference set - "known-good" before a semester, "pre-update" and
+# "post-update" around a Windows update).
+#
+# Then, from ansible/:
+#   python3 tools/snapshot-tool.py outliers snapshots/<label>
+#   python3 tools/snapshot-tool.py check    snapshots/<label>
+#   python3 tools/snapshot-tool.py draft    snapshots/<label>
+#   diff snapshots/<label>/LAB312-01.txt snapshots/<label>/LAB312-07.txt
+#
+# Snapshots hold account names (local users and admins), so they are
+# gitignored - keep them out of the repo, which is public.
+- name: Capture a state snapshot of every lab machine
+  hosts: windows_lab
+  gather_facts: false
+  vars:
+    snapshot_label: "{{ lookup('pipe', 'date +%F') }}"
+    remote_script: 'C:\Windows\Temp\state-snapshot.ps1'
+    remote_output: 'C:\Windows\Temp\state-snapshot.txt'
+  tasks:
+    - name: Collect and retrieve the snapshot
+      block:
+        - name: Copy the collector script to the machine
+          ansible.windows.win_copy:
+            # Anchored to ansible/ - a bare relative src would resolve
+            # against the playbook's own directory instead.
+            src: "{{ playbook_dir }}/../files/state-snapshot.ps1"
+            dest: "{{ remote_script }}"
+
+        # The script writes a UTF-8 file rather than printing, so names
+        # containing characters like (R) and (TM) survive intact and there
+        # is no command-line length or console-encoding limit to hit.
+        - name: Run it (read-only)
+          ansible.windows.win_shell: >-
+            powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass
+            -File {{ remote_script }} -OutFile {{ remote_output }}
+          changed_when: false
+
+        - name: Fetch the snapshot to the control node
+          ansible.builtin.fetch:
+            src: "{{ remote_output }}"
+            dest: "{{ playbook_dir }}/../snapshots/{{ snapshot_label }}/{{ inventory_hostname }}.txt"
+            flat: true
+      always:
+        - name: Remove the temporary files from the machine
+          ansible.windows.win_file:
+            path: "{{ item }}"
+            state: absent
+          loop:
+            - "{{ remote_script }}"
+            - "{{ remote_output }}"
